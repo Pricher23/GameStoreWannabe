@@ -237,4 +237,39 @@ public class DatabaseManager {
         }
         return 0.0;
     }
+
+    public List<User> getUserFriends(int userId) throws SQLException {
+        List<User> friends = new ArrayList<>();
+        String sql = "SELECT u.* FROM users u " +
+                     "JOIN friends f ON u.user_id = f.friend_id " +
+                     "WHERE f.user_id = ?";
+        
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setInt(1, userId);
+            ResultSet rs = pstmt.executeQuery();
+            
+            while (rs.next()) {
+                friends.add(new User(
+                    rs.getInt("user_id"),
+                    rs.getString("username"),
+                    rs.getString("password"),
+                    rs.getString("email"),
+                    rs.getString("role"),
+                    rs.getDouble("balance")
+                ));
+            }
+        }
+        return friends;
+    }
+
+    public void addFriend(int userId, int friendId) throws SQLException {
+        String sql = "INSERT INTO friends (user_id, friend_id) VALUES (?, ?)";
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setInt(1, userId);
+            pstmt.setInt(2, friendId);
+            pstmt.executeUpdate();
+        }
+    }
 } 

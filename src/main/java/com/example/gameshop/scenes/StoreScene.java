@@ -33,13 +33,28 @@ public class StoreScene {
         // Top section with menu and search
         VBox topSection = new VBox(10);
         topSection.setStyle("-fx-background-color: #3c3f41;");
+        topSection.setPadding(new Insets(10));
         
-        // Menu bar
-        MenuBar menuBar = createMenuBar();
+        // Menu bar with rounded buttons
+        HBox menuBox = new HBox(10);
+        menuBox.setPadding(new Insets(5, 15, 5, 15));
+        
+        Button storeBtn = new Button("Store");
+        Button accountBtn = new Button("Account");
+        Button logoutBtn = new Button("Logout");
+        
+        storeBtn.getStyleClass().add("menu-button");
+        accountBtn.getStyleClass().add("menu-button");
+        logoutBtn.getStyleClass().add("menu-button");
+        
+        storeBtn.setOnAction(e -> new StoreScene(stage));
+        accountBtn.setOnAction(e -> new AccountScene(stage));
+        logoutBtn.setOnAction(e -> handleLogout());
+        
+        menuBox.getChildren().addAll(storeBtn, accountBtn, logoutBtn);
         
         // Search bar section
         HBox searchBox = new HBox(10);
-        searchBox.setPadding(new Insets(10));
         searchBox.setAlignment(Pos.CENTER_RIGHT);
         
         TextField searchField = new TextField();
@@ -47,15 +62,18 @@ public class StoreScene {
         searchField.setPrefWidth(200);
         searchField.getStyleClass().add("dark-field");
         
-        // Add search functionality
         searchField.textProperty().addListener((observable, oldValue, newValue) -> {
             searchGames(newValue);
         });
         
         searchBox.getChildren().add(searchField);
         
-        topSection.getChildren().addAll(menuBar, searchBox);
+        topSection.getChildren().addAll(menuBox, searchBox);
         layout.setTop(topSection);
+
+        // Friends panel on the left
+        VBox friendsPanel = createFriendsPanel();
+        layout.setLeft(friendsPanel);
 
         // Games container
         gamesContainer = new FlowPane();
@@ -70,28 +88,92 @@ public class StoreScene {
 
         loadGames();
 
-        Scene scene = new Scene(layout, 800, 600);
+        Scene scene = new Scene(layout, 1000, 600); // Made window wider for friends panel
         scene.getStylesheets().add(getClass().getResource("/styles/dark-theme.css").toExternalForm());
         stage.setScene(scene);
     }
 
-    private MenuBar createMenuBar() {
-        MenuBar menuBar = new MenuBar();
-        menuBar.setStyle("-fx-background-color: #3c3f41;"); // Dark menu bar
+    private VBox createFriendsPanel() {
+        VBox friendsPanel = new VBox(10);
+        friendsPanel.setPadding(new Insets(10));
+        friendsPanel.setStyle("-fx-background-color: #3c3f41; -fx-min-width: 200;");
         
-        Menu accountMenu = new Menu("Account");
-        MenuItem accountItem = new MenuItem("My Account");
-        MenuItem logoutItem = new MenuItem("Logout");
+        Label titleLabel = new Label("Friends");
+        titleLabel.setStyle("-fx-font-size: 18; -fx-font-weight: bold; -fx-text-fill: white;");
         
-        accountItem.setOnAction(e -> new AccountScene(stage));
-        logoutItem.setOnAction(e -> {
-            GameShopApp.setCurrentUser(null);
-            new LoginScene(stage);
+        Button addFriendBtn = new Button("+ Add Friend");
+        addFriendBtn.getStyleClass().add("accent-button");
+        addFriendBtn.setMaxWidth(Double.MAX_VALUE);
+        addFriendBtn.setOnAction(e -> showAddFriendDialog());
+        
+        VBox friendsList = new VBox(5);
+        friendsList.setPadding(new Insets(5, 0, 5, 0));
+        
+        // Loading indicator for friends list
+        ProgressIndicator loadingIndicator = new ProgressIndicator();
+        loadingIndicator.setStyle("-fx-progress-color: #4b6eaf;");
+        
+        friendsPanel.getChildren().addAll(titleLabel, addFriendBtn, loadingIndicator);
+        
+        // Load friends list
+        ThreadPool.execute(() -> {
+            try {
+                List<User> friends = dbManager.getUserFriends(GameShopApp.getCurrentUser().getUserId());
+                Platform.runLater(() -> {
+                    friendsPanel.getChildren().remove(loadingIndicator);
+                    if (friends.isEmpty()) {
+                        Label noFriendsLabel = new Label("No friends yet");
+                        noFriendsLabel.setStyle("-fx-text-fill: #808080;");
+                        friendsList.getChildren().add(noFriendsLabel);
+                    } else {
+                        friends.forEach(friend -> {
+                            Button friendBtn = new Button(friend.getUsername());
+                            friendBtn.getStyleClass().add("friend-button");
+                            friendBtn.setMaxWidth(Double.MAX_VALUE);
+                            friendBtn.setOnAction(e -> new FriendSearchScene(stage, friend.getUsername()));
+                            friendsList.getChildren().add(friendBtn);
+                        });
+                    }
+                    friendsPanel.getChildren().add(friendsList);
+                });
+            } catch (SQLException e) {
+                Platform.runLater(() -> {
+                    friendsPanel.getChildren().remove(loadingIndicator);
+                    showAlert("Error", "Failed to load friends list");
+                });
+            }
         });
+        
+        return friendsPanel;
+    }
 
-        accountMenu.getItems().addAll(accountItem, logoutItem);
-        menuBar.getMenus().add(accountMenu);
-        return menuBar;
+    private void showAddFriendDialog() {
+        TextInputDialog dialog = new TextInputDialog();
+        dialog.setTitle("Add Friend");
+        dialog.setHeaderText(null);
+        dialog.setContentText("Enter username:");
+        
+        DialogPane dialogPane = dialog.getDialogPane();
+        dialogPane.setStyle("-fx-background-color: #2b2b2b;");
+        dialogPane.lookup(".content.label").setStyle("-fx-text-fill: white;");
+        
+        dialog.showAndWait().ifPresent(username -> {
+            try {
+                User friend = dbManager.getUserByUsername(username);
+                if (friend != null && friend.getUserId() != GameShopApp.getCurrentUser().getUserId()) {
+                    dbManager.addFriend(GameShopApp.getCurrentUser().getUserId(), friend.getUserId());
+                    showAlert("Success", "Friend added successfully!");
+                    // Refresh friends list
+                    createFriendsPanel();
+                } else if (friend != null) {
+                    showAlert("Error", "You cannot add yourself as a friend");
+                } else {
+                    showAlert("Error", "User not found");
+                }
+            } catch (SQLException e) {
+                showAlert("Error", "Failed to add friend: " + e.getMessage());
+            }
+        });
     }
 
     private void loadGames() {
@@ -249,5 +331,10 @@ public class StoreScene {
                 });
             }
         });
+    }
+
+    private void handleLogout() {
+        GameShopApp.setCurrentUser(null);
+        new LoginScene(stage);
     }
 } 

@@ -1,26 +1,50 @@
 .root {
     -fx-background-color: #2b2b2b;
     -fx-text-fill: white;
+    -fx-padding: 15;
 }
 
 .menu-bar {
-    -fx-background-color: #3c3f41;
-    -fx-border-color: #4b6eaf;
-    -fx-border-width: 0 0 1 0;
+    -fx-background-color: transparent;
+    -fx-padding: 0;
 }
 
-.menu-bar .label {
+.menu {
+    -fx-background-color: transparent;
+    -fx-padding: 8 25;
+    -fx-border-color: #4b6eaf;
+    -fx-border-radius: 20;
+    -fx-background-radius: 20;
+}
+
+.menu > .label {
     -fx-text-fill: #4b6eaf;
     -fx-font-size: 14px;
 }
 
+.menu:hover {
+    -fx-background-color: #4b6eaf;
+}
+
+.menu:hover > .label {
+    -fx-text-fill: white;
+}
+
 .menu-item {
-    -fx-background-color: #3c3f41;
-    -fx-padding: 5 10;
+    -fx-background-color: #2b2b2b;
+    -fx-padding: 8 25;
+    -fx-border-color: #4b6eaf;
+    -fx-border-width: 0 1 1 1;
+}
+
+.menu-item:last {
+    -fx-border-radius: 0 0 20 20;
+    -fx-background-radius: 0 0 20 20;
 }
 
 .menu-item .label {
     -fx-text-fill: #4b6eaf;
+    -fx-font-size: 14px;
 }
 
 .menu-item:hover {
@@ -32,13 +56,20 @@
 }
 
 .button {
-    -fx-background-color: #4CAF50;
-    -fx-text-fill: white;
-    -fx-background-radius: 3;
+    -fx-background-color: transparent;
+    -fx-text-fill: #4b6eaf;
+    -fx-font-size: 14px;
+    -fx-padding: 8 20;
+    -fx-border-color: #4b6eaf;
+    -fx-border-radius: 20;
+    -fx-background-radius: 20;
+    -fx-cursor: hand;
 }
 
 .button:hover {
-    -fx-background-color: #45a049;
+    -fx-background-color: #4b6eaf;
+    -fx-text-fill: white;
+    -fx-effect: dropshadow(three-pass-box, rgba(75, 110, 175, 0.4), 10, 0, 0, 0);
 }
 
 .button:disabled {
@@ -113,10 +144,17 @@
 .accent-button {
     -fx-background-color: #4b6eaf;
     -fx-text-fill: white;
+    -fx-font-size: 14px;
+    -fx-padding: 8 20;
+    -fx-border-color: transparent;
+    -fx-border-radius: 20;
+    -fx-background-radius: 20;
+    -fx-cursor: hand;
 }
 
 .accent-button:hover {
     -fx-background-color: #5780d9;
+    -fx-effect: dropshadow(three-pass-box, rgba(75, 110, 175, 0.4), 10, 0, 0, 0);
 }
 
 .secondary-button {
@@ -212,4 +250,80 @@
 .text-field.dark-field:focused {
     -fx-background-color: #353535;
     -fx-border-color: #5780d9;
+}
+
+.menu-button {
+    -fx-background-color: transparent;
+    -fx-text-fill: #4b6eaf;
+    -fx-font-size: 14px;
+    -fx-padding: 8 25;
+    -fx-border-color: #4b6eaf;
+    -fx-border-radius: 20;
+    -fx-background-radius: 20;
+    -fx-cursor: hand;
+    -fx-margin: 15;
+}
+
+.menu-button:hover {
+    -fx-background-color: #4b6eaf;
+    -fx-text-fill: white;
+    -fx-effect: dropshadow(three-pass-box, rgba(75, 110, 175, 0.4), 10, 0, 0, 0);
+}
+
+.friend-button {
+    -fx-background-color: #2b2b2b;
+    -fx-text-fill: white;
+    -fx-padding: 8 15;
+    -fx-border-radius: 15;
+    -fx-background-radius: 15;
+    -fx-cursor: hand;
+}
+
+.friend-button:hover {
+    -fx-background-color: #4b6eaf;
+    -fx-effect: dropshadow(three-pass-box, rgba(75, 110, 175, 0.4), 10, 0, 0, 0);
+}
+
+VBox, HBox {
+    -fx-spacing: 10;
+    -fx-padding: 10;
+}
+
+/* Menu styling */
+.menu-bar, .menu, .menu-item {
+    -fx-background-color: #2b2b2b;
+}
+
+.menu {
+    -fx-padding: 5 10;
+}
+
+.menu-item {
+    -fx-padding: 5 15;
+}
+
+.menu .label, .menu-item .label {
+    -fx-text-fill: #4b6eaf;
+}
+
+.menu:hover, .menu-item:hover {
+    -fx-background-color: #3c3f41;
+}
+
+.menu-item:focused {
+    -fx-background-color: #4b6eaf;
+}
+
+.menu-item:focused .label {
+    -fx-text-fill: white;
+}
+
+/* Context menu (dropdown) styling */
+.context-menu {
+    -fx-background-color: transparent;
+    -fx-padding: 0;
+    -fx-border-width: 0;
+    -fx-background-radius: 0 0 20 20;
+    -fx-border-radius: 0 0 20 20;
+    -fx-effect: none;
 } 

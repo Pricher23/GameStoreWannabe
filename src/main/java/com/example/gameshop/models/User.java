@@ -16,6 +16,15 @@ public class User {
         this.balance = 0.0;
     }
 
+    public User(int userId, String username, String password, String email, String role, double balance) {
+        this.userId = userId;
+        this.username = username;
+        this.password = password;
+        this.email = email;
+        this.role = role;
+        this.balance = balance;
+    }
+
     // Getters and Setters
     public int getUserId() { return userId; }
     public void setUserId(int userId) { this.userId = userId; }
