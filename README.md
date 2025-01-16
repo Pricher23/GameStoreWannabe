@@ -1,148 +1,172 @@
-# GameShop - Steam-Integrated Game Store Application
+# Game Shop Application
 
-A JavaFX-based desktop application that allows users to manage and purchase game keys while integrating with their Steam library.
+A JavaFX-based game shop application that allows users to manage their game library, integrate with Steam, and interact with other users.
 
 ## Features
 
-### User Management
-- User registration and authentication
-- Role-based access control (Admin/Customer)
-- Balance management system
-- Steam library integration
+### User Features
+- **Account Management**
+  - User registration and login
+  - Balance management
+  - Steam ID integration
+  - Profile customization
 
-### Game Management
-- Browse available games
-- Purchase game keys
-- View game details and pricing
-- Search functionality
-- Sort games by various criteria
+- **Game Library**
+  - View purchased games
+  - Import and view Steam library games
+  - Sort games by various criteria
+  - Search functionality
+  - Game details view
+
+- **Social Features**
+  - Add and manage friends
+  - View friends' game libraries
+  - See common games with friends
+
+- **Store**
+  - Browse available games
+  - Purchase games
+  - Search and filter games
+  - View game details
 
 ### Admin Features
-- Manage users and their roles
-- Add new games to the store
-- Manage game keys
-- Monitor transactions
+- **User Management**
+  - View all users
+  - Delete users
+  - Manage user roles
 
-### Steam Integration
-- Import Steam library
-- View playtime statistics
-- Compare games with friends
+- **Game Management**
+  - Add new games
+  - Edit existing games
+  - Delete games
+  - Manage game keys
 
 ## Technical Requirements
 
-### Prerequisites
 - Java JDK 17 or higher
-- MySQL 8.0 or higher
-- Maven
-- Steam API Key (for Steam integration)
+- JavaFX 17.0.2
+- MySQL Database
+- Maven for dependency management
 
-### Database Setup
-1. Install MySQL
-2. Create a new database named `gameshop`
-3. Update database credentials in `src/main/java/com/example/gameshop/utils/DatabaseConnection.java`
+## Database Setup
 
-java
-private static final String URL = "jdbc:mysql://localhost:3306/gameshop";
-private static final String USER = "your_username";
-private static final String PASSWORD = "your_password";
+1. Create a MySQL database named `gameshop`
+2. Run the following SQL scripts:
+```sql
+-- Users table
+CREATE TABLE users (
+    user_id INT PRIMARY KEY AUTO_INCREMENT,
+    username VARCHAR(50) NOT NULL UNIQUE,
+    password VARCHAR(100) NOT NULL,
+    email VARCHAR(100) NOT NULL,
+    role VARCHAR(20) DEFAULT 'USER',
+    balance DECIMAL(10,2) DEFAULT 0.0,
+    steam_id VARCHAR(50)
+);
 
-### Installation
+-- Games table
+CREATE TABLE games (
+    game_id INT PRIMARY KEY AUTO_INCREMENT,
+    title VARCHAR(100) NOT NULL,
+    description TEXT,
+    price DECIMAL(10,2) NOT NULL,
+    app_id INT,
+    developer VARCHAR(100),
+    publisher VARCHAR(100),
+    genre VARCHAR(50)
+);
 
-1. Clone the repository
+-- Game keys table
+CREATE TABLE game_keys (
+    key_id INT PRIMARY KEY AUTO_INCREMENT,
+    game_id INT NOT NULL,
+    key_value VARCHAR(100) NOT NULL,
+    is_sold BOOLEAN DEFAULT false,
+    FOREIGN KEY (game_id) REFERENCES games(game_id)
+);
+
+-- User games table
+CREATE TABLE user_games (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    user_id INT NOT NULL,
+    game_id INT NOT NULL,
+    purchase_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(user_id),
+    FOREIGN KEY (game_id) REFERENCES games(game_id)
+);
+
+-- Friends table
+CREATE TABLE friends (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    user_id INT NOT NULL,
+    friend_id INT NOT NULL,
+    status VARCHAR(20) DEFAULT 'PENDING',
+    FOREIGN KEY (user_id) REFERENCES users(user_id),
+    FOREIGN KEY (friend_id) REFERENCES users(user_id),
+    UNIQUE KEY unique_friendship (user_id, friend_id)
+);
+```
+
+## Installation
+
+1. Clone the repository:
 ```bash
 git clone https://github.com/yourusername/gameshop.git
 ```
 
-2. Navigate to project directory
-```bash:README.md
+2. Navigate to the project directory:
+```bash
 cd gameshop
 ```
 
-3. Build the project
+3. Build the project using Maven:
 ```bash
 mvn clean install
 ```
 
-4. Run the application
+4. Run the application:
 ```bash
 mvn javafx:run
 ```
 
-## Project Structure
+## Configuration
 
-```
-gameshop/
-├── src/
-│   ├── main/
-│   │   ├── java/
-│   │   │   └── com/example/gameshop/
-│   │   │       ├── dao/
-│   │   │       ├── models/
-│   │   │       ├── scenes/
-│   │   │       ├── services/
-│   │   │       └── utils/
-│   │   └── resources/
-│   │       └── styles/
-│   └── test/
-│       └── java/
-└── pom.xml
+1. Update the database connection settings in `src/main/resources/config.properties`:
+```properties
+db.url=jdbc:mysql://localhost:3306/gameshop
+db.user=your_username
+db.password=your_password
 ```
 
-## Key Components
-
-### Models
-- `User`: User account management
-- `Game`: Game information and pricing
-- `GameKey`: Game key management
-- `GameDetails`: Detailed game information
-
-### Services
-- `SteamAPI`: Steam platform integration
-- `DatabaseManager`: Database operations
-- `ThreadPool`: Asynchronous operations
-
-### UI Scenes
-- Login/Register scenes
-- Store interface
-- Account management
-- Admin dashboard
-- Friend search
-- Game preview
-
-## Testing
-
-Run the test suite using Maven:
-```bash
-mvn test
+2. Configure Steam API key (if using Steam integration):
+```properties
+steam.api.key=your_steam_api_key
 ```
 
-The project includes unit tests for:
-- Model constructors
-- Business logic
-- Data validation
+## Usage
 
-## Styling
+### User Guide
+1. Register a new account or login with existing credentials
+2. Add funds to your account using the "Add Funds" button
+3. Browse the store and purchase games
+4. Connect your Steam account to import your Steam library
+5. Use the search and sort features to organize your library
+6. Add friends and view their game libraries
 
-The application uses a custom dark theme defined in `dark-theme.css`. Key features include:
-- Dark color scheme
-- Custom button styles
-- Responsive layouts
-- Modern UI elements
-
-## Security Features
-
-- Password validation
-- Input sanitization
-- Role-based access control
-- Database query validation
+### Admin Guide
+1. Login with admin credentials
+2. Use the admin panel to manage users and games
+3. Add new games to the store
+4. Generate and manage game keys
+5. Monitor user activities
 
 ## Contributing
 
 1. Fork the repository
-2. Create a feature branch
+2. Create a new branch for your feature
 3. Commit your changes
 4. Push to the branch
-5. Create a Pull Request
+5. Create a new Pull Request
 
 ## License
 
@@ -152,5 +176,5 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 - JavaFX framework
 - Steam Web API
-- MySQL Community
-- Maven build tool
+- MySQL database
+- All contributors and testers
