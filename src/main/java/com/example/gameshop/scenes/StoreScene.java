@@ -11,6 +11,9 @@ import com.example.gameshop.dao.DatabaseManager;
 import com.example.gameshop.models.*;
 import java.sql.SQLException;
 import java.util.List;
+import com.example.gameshop.utils.ThreadPool;
+import java.util.stream.Collectors;
+import javafx.geometry.Pos;
 
 public class StoreScene {
     private Stage stage;
@@ -25,17 +28,40 @@ public class StoreScene {
 
     private void createStoreScene() {
         BorderPane layout = new BorderPane();
-        layout.setStyle("-fx-background-color: #2b2b2b;"); // Dark background
+        layout.setStyle("-fx-background-color: #2b2b2b;");
         
+        // Top section with menu and search
+        VBox topSection = new VBox(10);
+        topSection.setStyle("-fx-background-color: #3c3f41;");
+        
+        // Menu bar
         MenuBar menuBar = createMenuBar();
-        layout.setTop(menuBar);
+        
+        // Search bar section
+        HBox searchBox = new HBox(10);
+        searchBox.setPadding(new Insets(10));
+        searchBox.setAlignment(Pos.CENTER_RIGHT);
+        
+        TextField searchField = new TextField();
+        searchField.setPromptText("Search games...");
+        searchField.setPrefWidth(200);
+        searchField.getStyleClass().add("dark-field");
+        
+        // Add search functionality
+        searchField.textProperty().addListener((observable, oldValue, newValue) -> {
+            searchGames(newValue);
+        });
+        
+        searchBox.getChildren().add(searchField);
+        
+        topSection.getChildren().addAll(menuBar, searchBox);
+        layout.setTop(topSection);
 
-        // Use FlowPane instead of VBox for horizontal layout
+        // Games container
         gamesContainer = new FlowPane();
         gamesContainer.setHgap(10);
         gamesContainer.setVgap(10);
         gamesContainer.setPadding(new Insets(10));
-        gamesContainer.setStyle("-fx-background-color: #2b2b2b;");
 
         ScrollPane scrollPane = new ScrollPane(gamesContainer);
         scrollPane.setFitToWidth(true);
@@ -45,7 +71,6 @@ public class StoreScene {
         loadGames();
 
         Scene scene = new Scene(layout, 800, 600);
-        // Add CSS for dark theme
         scene.getStylesheets().add(getClass().getResource("/styles/dark-theme.css").toExternalForm());
         stage.setScene(scene);
     }
@@ -70,20 +95,31 @@ public class StoreScene {
     }
 
     private void loadGames() {
-        Thread loadingThread = new Thread(() -> {
+        // Create loading indicator
+        ProgressIndicator loadingIndicator = new ProgressIndicator();
+        loadingIndicator.setStyle("-fx-progress-color: #4b6eaf;");
+        
+        // Center the loading indicator
+        StackPane loadingPane = new StackPane(loadingIndicator);
+        loadingPane.setPadding(new Insets(20));
+        gamesContainer.getChildren().setAll(loadingPane);
+
+        ThreadPool.execute(() -> {
             try {
                 List<Game> games = dbManager.getAllGames();
                 Platform.runLater(() -> {
-                    gamesContainer.getChildren().clear(); // Clear existing games
+                    gamesContainer.getChildren().clear();
                     for (Game game : games) {
                         gamesContainer.getChildren().add(createGameCard(game));
                     }
                 });
             } catch (SQLException e) {
-                Platform.runLater(() -> showAlert("Error", "Failed to load games"));
+                Platform.runLater(() -> {
+                    gamesContainer.getChildren().clear();
+                    showAlert("Error", "Failed to load games: " + e.getMessage());
+                });
             }
         });
-        loadingThread.start();
     }
 
     private VBox createGameCard(Game game) {
@@ -171,5 +207,47 @@ public class StoreScene {
         alert.setHeaderText(null);
         alert.setContentText(content);
         alert.showAndWait();
+    }
+
+    private void searchGames(String searchText) {
+        if (searchText == null || searchText.trim().isEmpty()) {
+            loadGames(); // Show all games if search is empty
+            return;
+        }
+
+        // Show loading indicator
+        ProgressIndicator loadingIndicator = new ProgressIndicator();
+        loadingIndicator.setStyle("-fx-progress-color: #4b6eaf;");
+        StackPane loadingPane = new StackPane(loadingIndicator);
+        loadingPane.setPadding(new Insets(20));
+        gamesContainer.getChildren().setAll(loadingPane);
+
+        ThreadPool.execute(() -> {
+            try {
+                List<Game> allGames = dbManager.getAllGames();
+                // Filter games based on search text
+                List<Game> filteredGames = allGames.stream()
+                    .filter(game -> game.getTitle().toLowerCase()
+                        .contains(searchText.toLowerCase()))
+                    .collect(Collectors.toList());
+
+                Platform.runLater(() -> {
+                    gamesContainer.getChildren().clear();
+                    if (filteredGames.isEmpty()) {
+                        Label noResults = new Label("No games found matching '" + searchText + "'");
+                        noResults.setStyle("-fx-text-fill: white;");
+                        gamesContainer.getChildren().add(noResults);
+                    } else {
+                        filteredGames.forEach(game -> 
+                            gamesContainer.getChildren().add(createGameCard(game)));
+                    }
+                });
+            } catch (SQLException e) {
+                Platform.runLater(() -> {
+                    gamesContainer.getChildren().clear();
+                    showAlert("Error", "Failed to search games: " + e.getMessage());
+                });
+            }
+        });
     }
 } 

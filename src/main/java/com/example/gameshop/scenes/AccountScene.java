@@ -11,6 +11,7 @@ import com.example.gameshop.dao.DatabaseManager;
 import com.example.gameshop.models.*;
 import java.sql.SQLException;
 import java.util.List;
+import com.example.gameshop.utils.ThreadPool;
 
 public class AccountScene {
     private Stage stage;
@@ -98,6 +99,11 @@ public class AccountScene {
         addFundsBtn.setMaxWidth(Double.MAX_VALUE);
         addFundsBtn.setOnAction(e -> showAddFundsDialog());
 
+        Button searchFriendsBtn = new Button("Search Friends");
+        searchFriendsBtn.getStyleClass().add("accent-button");
+        searchFriendsBtn.setMaxWidth(Double.MAX_VALUE);
+        searchFriendsBtn.setOnAction(e -> new FriendSearchScene(stage));
+
         userInfo.getChildren().addAll(
             titleLabel,
             new Separator(),
@@ -105,14 +111,24 @@ public class AccountScene {
             emailLabel,
             balanceLabel,
             new Separator(),
-            addFundsBtn
+            addFundsBtn,
+            searchFriendsBtn
         );
 
         return userInfo;
     }
 
     private void loadOwnedGames() {
-        Thread loadingThread = new Thread(() -> {
+        // Create loading indicator
+        ProgressIndicator loadingIndicator = new ProgressIndicator();
+        loadingIndicator.setStyle("-fx-progress-color: #4b6eaf;");
+        
+        // Center the loading indicator
+        StackPane loadingPane = new StackPane(loadingIndicator);
+        loadingPane.setPadding(new Insets(20));
+        gamesContainer.getChildren().setAll(loadingPane);
+
+        ThreadPool.execute(() -> {
             try {
                 List<UserGame> ownedGames = dbManager.getUserGames(currentUser.getUserId());
                 Platform.runLater(() -> {
@@ -122,10 +138,12 @@ public class AccountScene {
                     }
                 });
             } catch (SQLException e) {
-                Platform.runLater(() -> showAlert("Error", "Failed to load games"));
+                Platform.runLater(() -> {
+                    gamesContainer.getChildren().clear();
+                    showAlert("Error", "Failed to load games: " + e.getMessage());
+                });
             }
         });
-        loadingThread.start();
     }
 
     private VBox createGameCard(UserGame userGame) {
