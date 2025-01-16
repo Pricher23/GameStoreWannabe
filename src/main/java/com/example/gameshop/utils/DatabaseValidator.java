@@ -26,7 +26,7 @@ public class DatabaseValidator {
             logger.warning("Invalid price value, using default");
             return 0.0;
         }
-        // Round to 2 decimal places
+
         return Math.round(price * 100.0) / 100.0;
     }
     
