@@ -7,6 +7,7 @@ public class User {
     private String email;
     private String role;
     private double balance;
+    private String steamId;
 
     public User(String username, String password, String email) {
         this.username = username;
@@ -17,12 +18,17 @@ public class User {
     }
 
     public User(int userId, String username, String password, String email, String role, double balance) {
+        this(userId, username, password, email, role, balance, null);
+    }
+
+    public User(int userId, String username, String password, String email, String role, double balance, String steamId) {
         this.userId = userId;
         this.username = username;
         this.password = password;
         this.email = email;
         this.role = role;
         this.balance = balance;
+        this.steamId = steamId;
     }
 
     // Getters and Setters
@@ -43,4 +49,7 @@ public class User {
 
     public double getBalance() { return balance; }
     public void setBalance(double balance) { this.balance = balance; }
+
+    public String getSteamId() { return steamId; }
+    public void setSteamId(String steamId) { this.steamId = steamId; }
 } 

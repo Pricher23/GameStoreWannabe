@@ -326,4 +326,103 @@ VBox, HBox {
     -fx-background-radius: 0 0 20 20;
     -fx-border-radius: 0 0 20 20;
     -fx-effect: none;
+}
+
+.dark-field {
+    -fx-background-color: #2b2b2b;
+    -fx-text-fill: white;
+    -fx-prompt-text-fill: #808080;
+    -fx-border-color: #4b6eaf;
+    -fx-border-radius: 3;
+    -fx-padding: 5 10;
+}
+
+.dark-field:focused {
+    -fx-background-color: #353535;
+    -fx-border-color: #5780d9;
+}
+
+.dark-combo-box {
+    -fx-background-color: #2b2b2b;
+    -fx-text-fill: white;
+    -fx-mark-color: #4b6eaf;
+}
+
+.dark-combo-box .list-cell {
+    -fx-background-color: #2b2b2b;
+    -fx-text-fill: white;
+}
+
+.dark-combo-box .list-cell:hover {
+    -fx-background-color: #4b6eaf;
+}
+
+.dark-textarea {
+    -fx-background-color: #2b2b2b;
+    -fx-text-fill: white;
+    -fx-control-inner-background: #2b2b2b;
+}
+
+.game-card {
+    -fx-background-color: #3c3f41;
+    -fx-padding: 10;
+    -fx-background-radius: 5;
+    -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.2), 10, 0, 0, 0);
+    -fx-cursor: hand;
+}
+
+.game-card:hover {
+    -fx-background-color: #4b6eaf;
+    -fx-effect: dropshadow(three-pass-box, rgba(75,110,175,0.4), 10, 0, 0, 0);
+}
+
+.dark-scroll-pane {
+    -fx-background: #2b2b2b;
+    -fx-background-color: #2b2b2b;
+}
+
+.dark-scroll-pane .viewport {
+    -fx-background-color: #2b2b2b;
+}
+
+.dark-scroll-pane .scroll-bar {
+    -fx-background-color: #2b2b2b;
+}
+
+.dark-scroll-pane .scroll-bar .thumb {
+    -fx-background-color: #4b6eaf;
+}
+
+.dark-scroll-pane .scroll-bar .track {
+    -fx-background-color: #3c3f41;
+}
+
+.table-view {
+    -fx-background-color: #333333;
+    -fx-text-fill: white;
+}
+
+.table-view .column-header {
+    -fx-background-color: #2b2b2b;
+}
+
+.table-view .column-header .label {
+    -fx-text-fill: #4b6eaf;
+}
+
+.table-row-cell {
+    -fx-background-color: #333333;
+    -fx-text-fill: white;
+}
+
+.table-row-cell:odd {
+    -fx-background-color: #2b2b2b;
+}
+
+.table-row-cell:selected {
+    -fx-background-color: #4b6eaf;
+}
+
+.table-view .table-cell {
+    -fx-text-fill: white;
 } 

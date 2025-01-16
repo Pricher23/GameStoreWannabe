@@ -6,22 +6,43 @@ public class Game {
     private String description;
     private double price;
     
+    // New fields for Steam integration
+    private int appId;
+    private GameDetails details;
+    private int playtimeMinutes;
+
+    // Original constructor
     public Game(String title, String description, double price) {
         this.title = title;
         this.description = description;
         this.price = price;
     }
 
-    // Getters and Setters
+    // New constructor for Steam games
+    public Game(String name, GameDetails details, int playtimeMinutes) {
+        this.title = name;
+        this.details = details;
+        this.playtimeMinutes = playtimeMinutes;
+        this.description = details.getDescription();
+        this.price = details.getPrice();
+    }
+
+    // Original getters and setters
     public int getGameId() { return gameId; }
     public void setGameId(int gameId) { this.gameId = gameId; }
-
     public String getTitle() { return title; }
     public void setTitle(String title) { this.title = title; }
-
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
-
     public double getPrice() { return price; }
     public void setPrice(double price) { this.price = price; }
+
+    // New getters and setters for Steam fields
+    public int getAppId() { return appId; }
+    public void setAppId(int appId) { this.appId = appId; }
+    public GameDetails getDetails() { return details; }
+    public void setDetails(GameDetails details) { this.details = details; }
+    public int getPlaytimeMinutes() { return playtimeMinutes; }
+    public void setPlaytimeMinutes(int playtimeMinutes) { this.playtimeMinutes = playtimeMinutes; }
+    public String getName() { return title; } // Alias for getTitle() to maintain compatibility
 } 
