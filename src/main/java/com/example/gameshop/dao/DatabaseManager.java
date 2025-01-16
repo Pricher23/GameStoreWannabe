@@ -14,6 +14,7 @@ import java.util.stream.Collectors;
 import java.util.Map;
 import java.util.HashSet;
 import com.example.gameshop.utils.DatabaseValidator;
+import com.example.gameshop.GameShopApp;
 
 public class DatabaseManager {
     public User getUserByUsername(String username) throws SQLException {
@@ -59,11 +60,13 @@ public class DatabaseManager {
     }
 
     public List<User> getAllUsers() throws SQLException {
-        List<User> users = new ArrayList<>();
         String sql = "SELECT * FROM users";
+        List<User> users = new ArrayList<>();
+        
         try (Connection conn = DatabaseConnection.getConnection();
-             Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
+             PreparedStatement stmt = conn.prepareStatement(sql);
+             ResultSet rs = stmt.executeQuery()) {
+            
             while (rs.next()) {
                 User user = new User(
                     rs.getString("username"),
@@ -100,11 +103,13 @@ public class DatabaseManager {
     }
 
     public List<Game> getAllGames() throws SQLException {
-        List<Game> games = new ArrayList<>();
         String sql = "SELECT * FROM games";
+        List<Game> games = new ArrayList<>();
+        
         try (Connection conn = DatabaseConnection.getConnection();
-             Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
+             PreparedStatement stmt = conn.prepareStatement(sql);
+             ResultSet rs = stmt.executeQuery()) {
+            
             while (rs.next()) {
                 Game game = new Game(
                     rs.getString("title"),
@@ -184,13 +189,11 @@ public class DatabaseManager {
     }
 
     public List<UserGame> getUserGames(int userId) throws SQLException {
+        String sql = "SELECT g.*, ug.purchase_date FROM games g " +
+                    "INNER JOIN user_games ug ON g.game_id = ug.game_id " +
+                    "WHERE ug.user_id = ?";
+                    
         List<UserGame> userGames = new ArrayList<>();
-        String sql = """
-            SELECT g.*, gk.* 
-            FROM games g 
-            JOIN game_keys gk ON g.game_id = gk.game_id 
-            WHERE gk.user_id = ?
-        """;
         
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -205,30 +208,30 @@ public class DatabaseManager {
                 );
                 game.setGameId(rs.getInt("game_id"));
                 
-                GameKey key = new GameKey(
-                    rs.getInt("game_id"),
-                    rs.getString("key_value")
+                GameKey gameKey = new GameKey(
+                    game.getGameId(),
+                    "KEY-" + game.getGameId() + "-" + userId // Generate a dummy key for now
                 );
-                key.setKeyId(rs.getInt("key_id"));
                 
-                userGames.add(new UserGame(game, key));
+                userGames.add(new UserGame(game, gameKey));
             }
         }
+        
         return userGames;
     }
 
     public boolean userOwnsGame(int userId, int gameId) throws SQLException {
-        String sql = "SELECT COUNT(*) FROM game_keys WHERE user_id = ? AND game_id = ?";
+        String sql = "SELECT 1 FROM user_games WHERE user_id = ? AND game_id = ?";
+        
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, userId);
             stmt.setInt(2, gameId);
-            ResultSet rs = stmt.executeQuery();
-            if (rs.next()) {
-                return rs.getInt(1) > 0;
+            
+            try (ResultSet rs = stmt.executeQuery()) {
+                return rs.next();
             }
         }
-        return false;
     }
 
     public double getUserBalance(int userId) throws SQLException {
@@ -272,10 +275,10 @@ public class DatabaseManager {
     public void addFriend(int userId, int friendId) throws SQLException {
         String sql = "INSERT INTO friends (user_id, friend_id) VALUES (?, ?)";
         try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            pstmt.setInt(1, userId);
-            pstmt.setInt(2, friendId);
-            pstmt.executeUpdate();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, userId);
+            stmt.setInt(2, friendId);
+            stmt.executeUpdate();
         }
     }
 
@@ -393,6 +396,167 @@ public class DatabaseManager {
             } finally {
                 conn.setAutoCommit(true);
             }
+        }
+    }
+
+    public List<User> searchUsers(String username) throws SQLException {
+        String sql = "SELECT * FROM users WHERE username LIKE ? AND user_id != ?";
+        List<User> users = new ArrayList<>();
+        
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, "%" + username + "%");
+            stmt.setInt(2, GameShopApp.getCurrentUser().getUserId());
+            
+            ResultSet rs = stmt.executeQuery();
+            while (rs.next()) {
+                User user = new User(
+                    rs.getString("username"),
+                    rs.getString("password"),
+                    rs.getString("email")
+                );
+                user.setUserId(rs.getInt("user_id"));
+                user.setRole(rs.getString("role"));
+                user.setBalance(rs.getDouble("balance"));
+                users.add(user);
+            }
+        }
+        return users;
+    }
+
+    public List<User> getFriends(int userId) throws SQLException {
+        String sql = "SELECT u.* FROM users u " +
+                    "INNER JOIN friends f ON u.user_id = f.friend_id " +
+                    "WHERE f.user_id = ? AND f.status = 'ACCEPTED'";
+        List<User> friends = new ArrayList<>();
+        
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, userId);
+            ResultSet rs = stmt.executeQuery();
+            while (rs.next()) {
+                User friend = new User(
+                    rs.getString("username"),
+                    rs.getString("password"),
+                    rs.getString("email")
+                );
+                friend.setUserId(rs.getInt("user_id"));
+                friend.setRole(rs.getString("role"));
+                friend.setBalance(rs.getDouble("balance"));
+                friends.add(friend);
+            }
+        }
+        return friends;
+    }
+
+    public boolean purchaseGame(int userId, int gameId, double price) throws SQLException {
+        // First check if user already owns the game
+        if (userOwnsGame(userId, gameId)) {
+            throw new SQLException("You already own this game!");
+            // This will be caught and displayed in the UI
+        }
+
+        Connection conn = DatabaseConnection.getConnection();
+        conn.setAutoCommit(false);
+        
+        try {
+            // First deduct balance
+            String updateBalanceSql = "UPDATE users SET balance = balance - ? WHERE user_id = ? AND balance >= ?";
+            try (PreparedStatement stmt = conn.prepareStatement(updateBalanceSql)) {
+                stmt.setDouble(1, price);
+                stmt.setInt(2, userId);
+                stmt.setDouble(3, price);
+                
+                if (stmt.executeUpdate() == 0) {
+                    conn.rollback();
+                    return false;
+                }
+            }
+            
+            // Then add to user_games
+            String insertGameSql = "INSERT INTO user_games (user_id, game_id) VALUES (?, ?)";
+            try (PreparedStatement stmt = conn.prepareStatement(insertGameSql)) {
+                stmt.setInt(1, userId);
+                stmt.setInt(2, gameId);
+                stmt.executeUpdate();
+            }
+            
+            // Add purchase record
+            String insertPurchaseSql = "INSERT INTO purchases (user_id, game_id, price) VALUES (?, ?, ?)";
+            try (PreparedStatement stmt = conn.prepareStatement(insertPurchaseSql)) {
+                stmt.setInt(1, userId);
+                stmt.setInt(2, gameId);
+                stmt.setDouble(3, price);
+                stmt.executeUpdate();
+            }
+            
+            conn.commit();
+            return true;
+            
+        } catch (SQLException e) {
+            conn.rollback();
+            throw e;
+        } finally {
+            conn.setAutoCommit(true);
+            conn.close();
+        }
+    }
+
+    public void deleteUser(int userId) throws SQLException {
+        String sql = "DELETE FROM users WHERE user_id = ?";
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, userId);
+            stmt.executeUpdate();
+        }
+    }
+
+    public void addGame(Game game) throws SQLException {
+        String sql = "INSERT INTO games (title, description, price) VALUES (?, ?, ?)";
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+            stmt.setString(1, game.getTitle());
+            stmt.setString(2, game.getDescription());
+            stmt.setDouble(3, game.getPrice());
+            stmt.executeUpdate();
+
+            // Get the generated game_id
+            try (ResultSet rs = stmt.getGeneratedKeys()) {
+                if (rs.next()) {
+                    game.setGameId(rs.getInt(1));
+                }
+            }
+        }
+    }
+
+    public void deleteGame(int gameId) throws SQLException {
+        String sql = "DELETE FROM games WHERE game_id = ?";
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, gameId);
+            stmt.executeUpdate();
+        }
+    }
+
+    public void updateGame(Game game) throws SQLException {
+        String sql = "UPDATE games SET title = ?, description = ?, price = ? WHERE game_id = ?";
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, game.getTitle());
+            stmt.setString(2, game.getDescription());
+            stmt.setDouble(3, game.getPrice());
+            stmt.setInt(4, game.getGameId());
+            stmt.executeUpdate();
+        }
+    }
+
+    public void addGameKey(int gameId, String keyValue) throws SQLException {
+        String sql = "INSERT INTO game_keys (game_id, key_value, is_sold) VALUES (?, ?, false)";
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, gameId);
+            stmt.setString(2, keyValue);
+            stmt.executeUpdate();
         }
     }
 } 

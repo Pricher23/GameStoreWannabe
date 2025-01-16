@@ -45,4 +45,9 @@ public class Game {
     public int getPlaytimeMinutes() { return playtimeMinutes; }
     public void setPlaytimeMinutes(int playtimeMinutes) { this.playtimeMinutes = playtimeMinutes; }
     public String getName() { return title; } // Alias for getTitle() to maintain compatibility
+
+    @Override
+    public String toString() {
+        return String.format("%s - $%.2f", this.getTitle(), this.getPrice());
+    }
 } 

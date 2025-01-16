@@ -19,6 +19,7 @@ public class StoreScene {
     private Stage stage;
     private DatabaseManager dbManager;
     private FlowPane gamesContainer;
+    private Label balanceLabel;
 
     public StoreScene(Stage stage) {
         this.stage = stage;
@@ -43,6 +44,12 @@ public class StoreScene {
         Button accountBtn = new Button("Account");
         Button logoutBtn = new Button("Logout");
         
+        // Add balance display
+        balanceLabel = new Label(String.format("Balance: $%.2f", 
+            GameShopApp.getCurrentUser().getBalance()));
+        balanceLabel.setStyle("-fx-text-fill: white; -fx-font-size: 14px;");
+        
+        // Style buttons
         storeBtn.getStyleClass().add("menu-button");
         accountBtn.getStyleClass().add("menu-button");
         logoutBtn.getStyleClass().add("menu-button");
@@ -51,7 +58,8 @@ public class StoreScene {
         accountBtn.setOnAction(e -> new AccountScene(stage));
         logoutBtn.setOnAction(e -> handleLogout());
         
-        menuBox.getChildren().addAll(storeBtn, accountBtn, logoutBtn);
+        menuBox.getChildren().addAll(storeBtn, accountBtn, logoutBtn, balanceLabel);
+        menuBox.setAlignment(Pos.CENTER_LEFT);
         
         // Search bar section
         HBox searchBox = new HBox(10);
@@ -242,44 +250,42 @@ public class StoreScene {
     }
 
     private void handlePurchase(Game game) {
-        User currentUser = GameShopApp.getCurrentUser();
-        
-        if (currentUser.getBalance() < game.getPrice()) {
-            showAlert("Insufficient Funds", 
-                     "You don't have enough balance to purchase this game.\n" +
-                     "Current balance: $" + String.format("%.2f", currentUser.getBalance()) + 
-                     "\nGame price: $" + String.format("%.2f", game.getPrice()));
-            return;
-        }
-
         try {
-            GameKey gameKey = dbManager.getAvailableGameKey(game.getGameId());
-            if (gameKey == null) {
-                showAlert("Out of Stock", "Sorry, this game is currently out of stock.");
+            User currentUser = GameShopApp.getCurrentUser();
+            if (currentUser == null) {
+                showAlert("Error", "Please log in to purchase games");
                 return;
             }
 
-            // Update user balance
-            double newBalance = currentUser.getBalance() - game.getPrice();
-            dbManager.updateUserBalance(currentUser.getUserId(), newBalance);
-            currentUser.setBalance(newBalance);
+            if (currentUser.getBalance() < game.getPrice()) {
+                showAlert("Error", "Insufficient balance");
+                return;
+            }
 
-            // Assign key to user
-            dbManager.assignGameKeyToUser(gameKey.getKeyId(), currentUser.getUserId());
+            boolean success = dbManager.purchaseGame(
+                currentUser.getUserId(), 
+                game.getGameId(), 
+                game.getPrice()
+            );
 
-            // Show success message with the key
-            Alert alert = new Alert(Alert.AlertType.INFORMATION);
-            alert.setTitle("Purchase Successful");
-            alert.setHeaderText(null);
-            alert.setContentText("You have successfully purchased " + game.getTitle() + 
-                               "\nYour game key is: " + gameKey.getKeyValue() +
-                               "\nYou can view this key again in your account.");
-            alert.showAndWait();
-
-            // Refresh the store view
-            loadGames();
+            if (success) {
+                currentUser.setBalance(currentUser.getBalance() - game.getPrice());
+                showAlert("Success", "Successfully purchased " + game.getTitle());
+                refreshBalance();
+            }
         } catch (SQLException e) {
-            showAlert("Error", "Failed to complete purchase: " + e.getMessage());
+            if (e.getMessage().contains("already own")) {
+                showAlert("Notice", "You already own this game!");
+            } else {
+                showAlert("Error", "Failed to process purchase: " + e.getMessage());
+            }
+        }
+    }
+
+    private void refreshBalance() {
+        if (balanceLabel != null) {
+            balanceLabel.setText(String.format("Balance: $%.2f", 
+                GameShopApp.getCurrentUser().getBalance()));
         }
     }
 

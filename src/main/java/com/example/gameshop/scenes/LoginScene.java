@@ -81,7 +81,11 @@ public class LoginScene {
             User user = dbManager.getUserByUsername(username);
             if (user != null && user.getPassword().equals(password)) {
                 GameShopApp.setCurrentUser(user);
-                if (user.getRole().equals("ADMIN")) {
+                
+                // Debug print to check role
+                System.out.println("User role: " + user.getRole());
+                
+                if ("ADMIN".equalsIgnoreCase(user.getRole())) {
                     new AdminScene(stage);
                 } else {
                     new StoreScene(stage);

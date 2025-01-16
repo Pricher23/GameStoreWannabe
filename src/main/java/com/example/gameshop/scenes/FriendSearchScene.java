@@ -87,92 +87,125 @@ public class FriendSearchScene {
         }
 
         ProgressIndicator loadingIndicator = new ProgressIndicator();
-        loadingIndicator.setStyle("-fx-progress-color: #4b6eaf;");
-        contentArea.getChildren().setAll(loadingIndicator);
+        loadingIndicator.setVisible(true);
+        contentArea.getChildren().clear();
+        contentArea.getChildren().add(loadingIndicator);
 
         ThreadPool.execute(() -> {
             try {
-                User user = dbManager.getUserByUsername(username);
-                if (user != null) {
-                    List<UserGame> userGames = dbManager.getUserGames(user.getUserId());
-                    Platform.runLater(() -> showUserProfile(user, userGames));
-                } else {
-                    Platform.runLater(() -> {
-                        contentArea.getChildren().clear();
-                        showAlert("Not Found", "User not found");
-                    });
-                }
+                List<User> users = dbManager.searchUsers(username);
+                Platform.runLater(() -> {
+                    contentArea.getChildren().clear();
+                    if (users.isEmpty()) {
+                        Label noResults = new Label("No users found");
+                        noResults.setStyle("-fx-text-fill: white;");
+                        contentArea.getChildren().add(noResults);
+                    } else {
+                        for (User user : users) {
+                            createUserProfileBox(user);
+                        }
+                    }
+                });
             } catch (SQLException e) {
                 Platform.runLater(() -> {
                     contentArea.getChildren().clear();
-                    showAlert("Error", "Failed to search user: " + e.getMessage());
+                    showAlert("Error", "Failed to search users: " + e.getMessage());
                 });
             }
         });
     }
 
-    private void showUserProfile(User user, List<UserGame> userGames) {
+    private void createUserProfileBox(User user) {
+        VBox profileBox = new VBox(10);
+        profileBox.setStyle("-fx-background-color: #3c3f41; -fx-padding: 15; -fx-background-radius: 5;");
+        profileBox.setPrefWidth(400);
+
+        // Username label
+        Label usernameLabel = new Label(user.getUsername());
+        usernameLabel.setStyle("-fx-font-size: 18; -fx-text-fill: white;");
+
+        // Add friend button
+        Button addFriendBtn = new Button("Add Friend");
+        addFriendBtn.getStyleClass().add("accent-button");
+        addFriendBtn.setOnAction(e -> addFriend(user));
+
+        // View profile button
+        Button viewProfileBtn = new Button("View Profile");
+        viewProfileBtn.getStyleClass().add("secondary-button");
+        viewProfileBtn.setOnAction(e -> viewProfile(user));
+
+        // Button container
+        HBox buttonBox = new HBox(10);
+        buttonBox.getChildren().addAll(addFriendBtn, viewProfileBtn);
+
+        profileBox.getChildren().addAll(usernameLabel, buttonBox);
+        contentArea.getChildren().add(profileBox);
+    }
+
+    private void addFriend(User friend) {
+        try {
+            dbManager.addFriend(GameShopApp.getCurrentUser().getUserId(), friend.getUserId());
+            showAlert("Success", "Friend request sent to " + friend.getUsername());
+        } catch (SQLException e) {
+            showAlert("Error", "Failed to add friend: " + e.getMessage());
+        }
+    }
+
+    private void viewProfile(User user) {
+        // Clear current content
         contentArea.getChildren().clear();
 
-        VBox profileBox = new VBox(10);
+        VBox profileBox = new VBox(15);
         profileBox.setStyle("-fx-background-color: #3c3f41; -fx-padding: 20; -fx-background-radius: 5;");
+        profileBox.setPrefWidth(400);
 
-        Label usernameLabel = new Label("Username: " + user.getUsername());
-        usernameLabel.setStyle("-fx-font-size: 18; -fx-font-weight: bold; -fx-text-fill: white;");
+        // Username header
+        Label usernameLabel = new Label(user.getUsername());
+        usernameLabel.setStyle("-fx-font-size: 24; -fx-text-fill: white; -fx-font-weight: bold;");
 
-        // Get current user's games
         try {
-            List<UserGame> currentUserGames = dbManager.getUserGames(GameShopApp.getCurrentUser().getUserId());
+            // Convert UserGame to Game objects
+            List<Game> currentUserGames = dbManager.getUserGames(GameShopApp.getCurrentUser().getUserId())
+                .stream()
+                .map(UserGame::getGame)
+                .collect(Collectors.toList());
+            
+            List<Game> friendGames = dbManager.getUserGames(user.getUserId())
+                .stream()
+                .map(UserGame::getGame)
+                .collect(Collectors.toList());
+
             Set<Integer> currentUserGameIds = currentUserGames.stream()
-                .map(ug -> ug.getGame().getGameId())
+                .map(Game::getGameId)
                 .collect(Collectors.toSet());
 
             // Common Games Section
             Label commonGamesLabel = new Label("Games in Common:");
-            commonGamesLabel.setStyle("-fx-font-size: 16; -fx-text-fill: #90EE90;"); // Light green
+            commonGamesLabel.setStyle("-fx-font-size: 16; -fx-text-fill: white;");
 
             VBox commonGamesBox = new VBox(5);
-            List<UserGame> commonGames = userGames.stream()
-                .filter(ug -> currentUserGameIds.contains(ug.getGame().getGameId()))
+            List<Game> commonGames = friendGames.stream()
+                .filter(g -> currentUserGameIds.contains(g.getGameId()))
                 .collect(Collectors.toList());
 
-            for (UserGame userGame : commonGames) {
-                Label gameLabel = new Label("• " + userGame.getGame().getTitle());
-                gameLabel.setStyle("-fx-text-fill: #90EE90;"); // Light green
-                commonGamesBox.getChildren().add(gameLabel);
+            if (commonGames.isEmpty()) {
+                Label noGamesLabel = new Label("No games in common");
+                noGamesLabel.setStyle("-fx-text-fill: #808080;");
+                commonGamesBox.getChildren().add(noGamesLabel);
+            } else {
+                for (Game game : commonGames) {
+                    Label gameLabel = new Label("• " + game.getTitle());
+                    gameLabel.setStyle("-fx-text-fill: #90EE90;"); // Light green
+                    commonGamesBox.getChildren().add(gameLabel);
+                }
             }
 
-            // Other Games Section
-            Label otherGamesLabel = new Label("Other Games:");
-            otherGamesLabel.setStyle("-fx-font-size: 16; -fx-text-fill: white;");
-
-            VBox otherGamesBox = new VBox(5);
-            List<UserGame> otherGames = userGames.stream()
-                .filter(ug -> !currentUserGameIds.contains(ug.getGame().getGameId()))
-                .collect(Collectors.toList());
-
-            for (UserGame userGame : otherGames) {
-                Label gameLabel = new Label("• " + userGame.getGame().getTitle());
-                gameLabel.setStyle("-fx-text-fill: white;");
-                otherGamesBox.getChildren().add(gameLabel);
-            }
-
-            // Add sections to profile box
-            profileBox.getChildren().addAll(
-                usernameLabel,
-                new Separator(),
-                commonGamesLabel,
-                commonGamesBox,
-                new Separator(),
-                otherGamesLabel,
-                otherGamesBox
-            );
+            profileBox.getChildren().addAll(usernameLabel, commonGamesLabel, commonGamesBox);
+            contentArea.getChildren().add(profileBox);
 
         } catch (SQLException e) {
-            showAlert("Error", "Failed to load games comparison");
+            showAlert("Error", "Failed to load profile: " + e.getMessage());
         }
-
-        contentArea.getChildren().add(profileBox);
     }
 
     private MenuBar createMenuBar() {
