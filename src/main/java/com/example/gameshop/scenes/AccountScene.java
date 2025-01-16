@@ -12,7 +12,7 @@ import com.example.gameshop.models.*;
 import java.sql.SQLException;
 import java.util.List;
 import com.example.gameshop.utils.ThreadPool;
-import com.example.gameshop.services.SteamAPI;
+import com.example.gameshop.utils.SteamAPI;
 import javafx.geometry.Pos;
 import javafx.scene.layout.Priority;
 import java.util.ArrayList;
@@ -123,7 +123,32 @@ public class AccountScene {
 
         searchBox.getChildren().addAll(searchField, searchBtn, sortBox);
 
-        topSection.getChildren().addAll(menuBox, filterBox, searchBox);
+        // Steam Import Section
+        HBox steamBox = new HBox(10);
+        steamBox.setAlignment(Pos.CENTER_LEFT);
+        
+        TextField steamIdField = new TextField();
+        steamIdField.setPromptText("Enter Steam ID");
+        steamIdField.setPrefWidth(200);
+        
+        Button importSteamBtn = new Button("Import Steam Library");
+        importSteamBtn.setOnAction(e -> importSteamLibrary(steamIdField.getText()));
+        
+        // Load saved Steam ID if exists
+        try {
+            String savedSteamId = dbManager.getUserSteamId(GameShopApp.getCurrentUser().getUserId());
+            if (savedSteamId != null && !savedSteamId.isEmpty()) {
+                steamIdField.setText(savedSteamId);
+            }
+        } catch (SQLException ex) {
+            showAlert("Error", "Failed to load Steam ID: " + ex.getMessage());
+        }
+        
+        steamBox.getChildren().addAll(new Label("Steam ID:"), steamIdField, importSteamBtn);
+        
+        // Add steamBox to topSection
+        topSection.getChildren().addAll(menuBox, filterBox, searchBox, steamBox);
+        
         return topSection;
     }
 
@@ -230,5 +255,38 @@ public class AccountScene {
         alert.setHeaderText(null);
         alert.setContentText(content);
         alert.showAndWait();
+    }
+
+    private void importSteamLibrary(String steamId) {
+        if (steamId == null || steamId.trim().isEmpty()) {
+            showAlert("Error", "Please enter a valid Steam ID");
+            return;
+        }
+
+        // Show loading indicator
+        ProgressIndicator progress = new ProgressIndicator();
+        contentArea.getChildren().add(progress);
+
+        ThreadPool.execute(() -> {
+            try {
+                // Save Steam ID to user profile
+                dbManager.updateUserSteamId(GameShopApp.getCurrentUser().getUserId(), steamId);
+
+                // Fetch and save Steam games
+                List<Game> steamGames = SteamAPI.getUserGames(steamId);
+                dbManager.saveSteamGames(GameShopApp.getCurrentUser().getUserId(), steamGames);
+
+                Platform.runLater(() -> {
+                    contentArea.getChildren().remove(progress);
+                    showAlert("Success", "Steam library imported successfully!");
+                    loadGames(currentView); // Refresh the game list
+                });
+            } catch (Exception e) {
+                Platform.runLater(() -> {
+                    contentArea.getChildren().remove(progress);
+                    showAlert("Error", "Failed to import Steam library: " + e.getMessage());
+                });
+            }
+        });
     }
 } 

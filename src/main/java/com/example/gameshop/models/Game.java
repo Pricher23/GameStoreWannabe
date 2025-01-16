@@ -10,6 +10,10 @@ public class Game {
     private int appId;
     private GameDetails details;
     private int playtimeMinutes;
+    private int playtime;
+    private String developer;
+    private String publisher;
+    private String genre;
 
     // Original constructor
     public Game(String title, String description, double price) {
@@ -45,6 +49,33 @@ public class Game {
     public int getPlaytimeMinutes() { return playtimeMinutes; }
     public void setPlaytimeMinutes(int playtimeMinutes) { this.playtimeMinutes = playtimeMinutes; }
     public String getName() { return title; } // Alias for getTitle() to maintain compatibility
+    public int getPlaytime() { return playtime; }
+    public void setPlaytime(int playtime) { this.playtime = playtime; }
+
+    // Add getters and setters
+    public String getDeveloper() {
+        return developer;
+    }
+
+    public void setDeveloper(String developer) {
+        this.developer = developer;
+    }
+
+    public String getPublisher() {
+        return publisher;
+    }
+
+    public void setPublisher(String publisher) {
+        this.publisher = publisher;
+    }
+
+    public String getGenre() {
+        return genre;
+    }
+
+    public void setGenre(String genre) {
+        this.genre = genre;
+    }
 
     @Override
     public String toString() {

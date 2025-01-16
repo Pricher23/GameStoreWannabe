@@ -103,7 +103,7 @@ public class DatabaseManager {
     }
 
     public List<Game> getAllGames() throws SQLException {
-        String sql = "SELECT * FROM games";
+        String sql = "SELECT game_id, title, description, price, developer, publisher, genre FROM games";
         List<Game> games = new ArrayList<>();
         
         try (Connection conn = DatabaseConnection.getConnection();
@@ -117,6 +117,9 @@ public class DatabaseManager {
                     rs.getDouble("price")
                 );
                 game.setGameId(rs.getInt("game_id"));
+                game.setDeveloper(rs.getString("developer"));
+                game.setPublisher(rs.getString("publisher"));
+                game.setGenre(rs.getString("genre"));
                 games.add(game);
             }
         }
@@ -282,27 +285,28 @@ public class DatabaseManager {
         }
     }
 
-    public void saveSteamGames(int userId, List<Game> games) throws SQLException {
-        String sql = "INSERT INTO steam_games (user_id, app_id, name, developer, publisher, genre, description, price, playtime_minutes) " +
-                     "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) " +
-                     "ON DUPLICATE KEY UPDATE " +
-                     "playtime_minutes = VALUES(playtime_minutes)";
-                     
-        try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            
-            for (Game game : games) {
-                pstmt.setInt(1, userId);
-                pstmt.setInt(2, game.getAppId());
-                pstmt.setString(3, game.getName());
-                pstmt.setString(4, game.getDetails().getDeveloper());
-                pstmt.setString(5, game.getDetails().getPublisher());
-                pstmt.setString(6, game.getDetails().getGenre());
-                pstmt.setString(7, game.getDetails().getDescription());
-                pstmt.setDouble(8, game.getDetails().getPrice());
-                pstmt.setInt(9, game.getPlaytimeMinutes());
-                
-                pstmt.executeUpdate();
+    public void saveSteamGames(int userId, List<Game> steamGames) throws SQLException {
+        String sql = "INSERT INTO steam_games (user_id, app_id, title, playtime) " +
+                    "VALUES (?, ?, ?, ?) " +
+                    "ON DUPLICATE KEY UPDATE playtime = VALUES(playtime)";
+                    
+        try (Connection conn = DatabaseConnection.getConnection()) {
+            conn.setAutoCommit(false);
+            try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+                for (Game game : steamGames) {
+                    stmt.setInt(1, userId);
+                    stmt.setInt(2, game.getAppId());
+                    stmt.setString(3, game.getTitle());
+                    stmt.setInt(4, game.getPlaytime());
+                    stmt.addBatch();
+                }
+                stmt.executeBatch();
+                conn.commit();
+            } catch (SQLException e) {
+                conn.rollback();
+                throw e;
+            } finally {
+                conn.setAutoCommit(true);
             }
         }
     }
@@ -318,25 +322,26 @@ public class DatabaseManager {
     }
 
     public List<Game> getUserSteamGames(int userId) throws SQLException {
-        List<Game> games = new ArrayList<>();
         String sql = "SELECT * FROM steam_games WHERE user_id = ?";
+        List<Game> games = new ArrayList<>();
         
         try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            pstmt.setInt(1, userId);
-            ResultSet rs = pstmt.executeQuery();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, userId);
+            ResultSet rs = stmt.executeQuery();
             
             while (rs.next()) {
-                GameDetails details = new GameDetails(
-                    rs.getString("developer"),
-                    rs.getString("publisher"),
-                    rs.getString("genre"),
-                    rs.getString("description"),
-                    rs.getDouble("price")
+                Game game = new Game(
+                    rs.getString("title"),
+                    "", // Description can be fetched on demand
+                    0.0 // Price not relevant for Steam games
                 );
-                
-                Game game = new Game(rs.getString("name"), details, rs.getInt("playtime_minutes"));
                 game.setAppId(rs.getInt("app_id"));
+                game.setPlaytime(rs.getInt("playtime"));
+                // Set these to empty strings if null to avoid NPE
+                game.setDeveloper(rs.getString("developer") != null ? rs.getString("developer") : "");
+                game.setPublisher(rs.getString("publisher") != null ? rs.getString("publisher") : "");
+                game.setGenre(rs.getString("genre") != null ? rs.getString("genre") : "");
                 games.add(game);
             }
         }
@@ -557,6 +562,19 @@ public class DatabaseManager {
             stmt.setInt(1, gameId);
             stmt.setString(2, keyValue);
             stmt.executeUpdate();
+        }
+    }
+
+    public String getUserSteamId(int userId) throws SQLException {
+        String sql = "SELECT steam_id FROM users WHERE user_id = ?";
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, userId);
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                return rs.getString("steam_id");
+            }
+            return null;
         }
     }
 } 
