@@ -15,7 +15,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class SteamAPI {
-    private static final String API_KEY = "B48783AA1FB9AE58728983E400007FF7";
+    private static final String API_KEY = "your_steam_api_key_here";
     private static final String BASE_URL = "http://api.steampowered.com";
     
     public List<Game> getOwnedGames(String steamId) throws IOException, InterruptedException {
